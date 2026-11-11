@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roda Keberuntungan Interaktif Pro</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Canvas Confetti Library -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Google Font Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-slate-700 selection:text-white">
+
+    <!-- Header Navigation -->
+    <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur-md sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 py-3.5 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-slate-800 border border-slate-700 p-2.5 rounded-xl shadow-sm text-slate-200">
+                    <i class="fa-solid font-bold fa-dharmachakra text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-slate-100">
+                        Roda Keberuntungan
+                    </h1>
+                    <p class="text-xs text-slate-400">Pengacak Nama & Setting Undian</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <!-- Secret Control Panel Toggle Button -->
+                <button id="btnSecretToggle" onclick="toggleSecretPanel()" class="p-2.5 bg-slate-800 hover:bg-slate-700 text-amber-300 rounded-xl transition flex items-center gap-2 text-xs font-semibold border border-amber-500/20">
+                    <i class="fa-solid fa-user-ninja"></i>
+                    <span class="hidden sm:inline">Panel Setting</span>
+                    <span id="secretBadge" class="w-2 h-2 rounded-full bg-slate-500"></span>
+                </button>
+
+                <button id="btnSoundToggle" onclick="toggleSound()" class="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition flex items-center gap-2 text-xs font-semibold border border-slate-700">
+                    <i class="fa-solid fa-volume-high text-slate-300" id="soundIcon"></i>
+                    <span id="soundText" class="hidden sm:inline">Suara: On</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="max-w-7xl mx-auto px-4 py-6 w-full flex-grow grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        
+        <!-- Left Section: Wheel Canvas & Controls -->
+        <section class="lg:col-span-7 flex flex-col items-center justify-center bg-slate-900/80 p-6 sm:p-8 rounded-2xl border border-slate-800 shadow-md relative overflow-hidden">
+            
+            <!-- Wheel Container -->
+            <div class="relative w-full max-w-[440px] aspect-square flex items-center justify-center my-4">
+                
+                <!-- Pointer Marker (Panah Penunjuk Atas) -->
+                <div class="absolute -top-3 z-20 flex flex-col items-center filter drop-shadow">
+                    <div class="w-7 h-9 bg-amber-500 clip-pointer rounded-t-sm border-t border-amber-300"></div>
+                    <i class="fa-solid fa-caret-down text-2xl text-amber-500 -mt-2.5"></i>
+                </div>
+                
+                <!-- Canvas Element -->
+                <canvas id="wheelCanvas" width="500" height="500" class="w-full h-full cursor-pointer transition-transform duration-300 rounded-full border-4 border-slate-700 shadow-lg"></canvas>
+                
+                <!-- Center Spin Button Hub -->
+                <button id="spinHubBtn" onclick="spinWheel()" class="absolute z-10 w-20 h-20 sm:w-22 sm:h-22 rounded-full bg-slate-800 text-slate-100 font-extrabold text-base border-4 border-slate-900 shadow-lg transform active:scale-95 transition-all hover:bg-slate-700 flex flex-col items-center justify-center group">
+                    <span class="tracking-wider text-sm font-bold">PUTAR</span>
+                    <i class="fa-solid fa-play text-[10px] mt-0.5 opacity-70"></i>
+                </button>
+            </div>
+
+            <!-- Action Controls Under Wheel -->
+            <div class="flex flex-wrap items-center justify-center gap-3 w-full max-w-md mt-4">
+                <button onclick="spinWheel()" id="spinBtn" class="flex-1 min-w-[140px] py-3 px-6 rounded-xl bg-amber-600 hover:bg-amber-500 font-bold text-white shadow transition-all flex items-center justify-center gap-2 text-sm">
+                    <i class="fa-solid fa-rotate text-base"></i> Putar Roda
+                </button>
+                <button onclick="shuffleItems()" class="py-3 px-5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold border border-slate-700 transition text-sm flex items-center gap-2" title="Acak Posisi Visual">
+                    <i class="fa-solid fa-shuffle text-slate-400"></i> Acak Posisi
+                </button>
+                <button onclick="resetWheelSettings()" class="py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border border-slate-700 transition text-sm" title="Reset Ke Awal">
+                    <i class="fa-solid fa-arrow-rotate-left"></i>
+                </button>
+            </div>
+
+        </section>
+
+        <!-- Right Section: Settings & Items Management -->
+        <section class="lg:col-span-5 flex flex-col gap-6">
+            
+            <!-- SECRET CONTROL PANEL (Hidden by Default) -->
+            <div id="secretControlPanel" class="bg-slate-900 p-6 rounded-2xl border border-amber-500/30 shadow-md hidden">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+                    <h2 class="font-bold text-amber-400 flex items-center gap-2 text-sm">
+                        <i class="fa-solid fa-user-ninja"></i> Pengaturan Hasil Rahasia
+                    </h2>
+                    <span class="text-[10px] bg-amber-500/10 text-amber-300 px-2 py-0.5 rounded border border-amber-500/20 font-mono">SETTING</span>
+                </div>
+
+                <div class="space-y-4">
+                    <!-- Mode Selection -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Mode Putaran:</label>
+                        <select id="riggedModeSelect" onchange="handleRiggedModeChange()" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-amber-300 font-medium focus:outline-none focus:border-amber-500">
+                            <option value="none">🟢 Fair / Murni Acak (Default)</option>
+                            <option value="next">🎯 Paksa Pemenang Selanjutnya (Single)</option>
+                            <option value="sequence">📜 Setting Urutan Pemenang per Putaran</option>
+                        </select>
+                    </div>
+
+                    <!-- Single Next Winner Selector -->
+                    <div id="nextWinnerGroup" class="hidden space-y-1.5 bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <label class="block text-xs text-amber-400 font-medium">Pilih Pemenang Putaran Berikutnya:</label>
+                        <select id="nextWinnerSelect" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200">
+                            <!-- Populated dynamically -->
+                        </select>
+                        <p class="text-[11px] text-slate-400">Nama ini dipastikan menang pada 1x putaran berikutnya, lalu kembali acak.</p>
+                    </div>
+
+                    <!-- Sequence Winners Selector -->
+                    <div id="sequenceWinnerGroup" class="hidden space-y-1.5 bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <label class="block text-xs text-amber-400 font-medium">Urutan Pemenang (Putaran 1, Putaran 2, dst):</label>
+                        <textarea id="sequenceWinnersInput" rows="3" placeholder="Masukkan urutan pemenang (1 nama per baris)&#10;Contoh:&#10;Andi Pratama&#10;Budi Santoso" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500"></textarea>
+                        <p class="text-[11px] text-slate-400">Putaran 1 memenangkan baris 1, Putaran 2 memenangkan baris 2, dst.</p>
+                    </div>
+
+                    <div id="riggedStatusText" class="text-xs text-slate-400 bg-slate-950 p-2.5 rounded-xl border border-slate-800 font-mono">
+                        Status: <span class="text-emerald-400 font-bold">FAIR / RANDOM</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Items Management Card -->
+            <div class="bg-slate-900/80 p-6 rounded-2xl border border-slate-800 shadow-md">
+                <div class="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
+                    <h2 class="font-bold text-slate-100 flex items-center gap-2 text-base">
+                        <i class="fa-solid fa-list-check text-slate-400"></i> Daftar Nama / Item
+                    </h2>
+                    <span id="itemCountBadge" class="bg-slate-800 text-slate-300 border border-slate-700 text-xs px-2.5 py-1 rounded-lg font-medium">
+                        0 Item
+                    </span>
+                </div>
+
+                <!-- Input Box -->
+                <div class="space-y-3">
+                    <label class="block text-xs font-medium text-slate-400">Tambah nama (satu nama per baris):</label>
+                    <textarea id="bulkInput" rows="3" placeholder="Masukkan nama...&#10;Andi Pratama&#10;Budi Santoso&#10;Citra Dewi" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-slate-600 transition resize-none"></textarea>
+                    
+                    <div class="flex gap-2">
+                        <button onclick="addItemsFromTextarea()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 font-semibold rounded-xl text-sm transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-plus text-xs"></i> Tambahkan
+                        </button>
+                        <button onclick="clearAllItems()" class="py-2.5 px-4 bg-slate-950 hover:bg-rose-950/40 text-slate-400 hover:text-rose-400 border border-slate-800 rounded-xl text-sm font-semibold transition">
+                            Hapus Semua
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Items List Container -->
+                <div class="mt-5">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-medium text-slate-400">Daftar Item Saat Ini:</span>
+                    </div>
+                    
+                    <div id="itemsContainer" class="max-h-[200px] overflow-y-auto pr-1 space-y-2">
+                        <!-- Items rendered via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Configuration Settings Card -->
+            <div class="bg-slate-900/80 p-6 rounded-2xl border border-slate-800 shadow-md space-y-4">
+                <h2 class="font-bold text-slate-100 flex items-center gap-2 text-sm border-b border-slate-800 pb-3">
+                    <i class="fa-solid fa-sliders text-slate-400"></i> Opsi Pengaturan
+                </h2>
+
+                <!-- Spin Duration Slider -->
+                <div>
+                    <div class="flex justify-between text-xs font-medium mb-1.5">
+                        <span class="text-slate-300">Durasi Putaran</span>
+                        <span id="durationVal" class="text-slate-200 font-bold">5 Detik</span>
+                    </div>
+                    <input type="range" id="spinDuration" min="3" max="12" value="5" oninput="updateDurationLabel()" class="w-full h-2 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-slate-400">
+                </div>
+
+                <!-- Options -->
+                <div class="space-y-2 pt-1">
+                    <label class="flex items-center justify-between cursor-pointer p-2 rounded-xl hover:bg-slate-800/60 transition">
+                        <span class="text-xs font-medium text-slate-300 flex items-center gap-2">
+                            <i class="fa-solid fa-user-minus text-slate-400"></i> Otomatis Hapus Pemenang Dari Daftar
+                        </span>
+                        <input type="checkbox" id="autoRemoveWinner" class="w-4 h-4 rounded accent-slate-500 bg-slate-950 border-slate-700">
+                    </label>
+
+                    <label class="flex items-center justify-between cursor-pointer p-2 rounded-xl hover:bg-slate-800/60 transition">
+                        <span class="text-xs font-medium text-slate-300 flex items-center gap-2">
+                            <i class="fa-solid fa-wand-magic-sparkles text-slate-400"></i> Efek Konfeti Pemenang
+                        </span>
+                        <input type="checkbox" id="enableConfetti" checked class="w-4 h-4 rounded accent-slate-500 bg-slate-950 border-slate-700">
+                    </label>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Winner Announcement Modal -->
+    <div id="winnerModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-300">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 max-w-sm w-full text-center shadow-xl transform scale-95 transition-all duration-300" id="modalContent">
+            
+            <div class="w-14 h-14 bg-amber-500/10 border border-amber-500/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fa-solid fa-trophy text-2xl text-amber-400"></i>
+            </div>
+            
+            <h3 class="text-xs uppercase font-bold tracking-wider text-slate-400 mb-1">Pemenang Undian</h3>
+            <h2 id="winnerName" class="text-2xl sm:text-3xl font-extrabold text-slate-100 break-words my-2">
+                -
+            </h2>
+            <p class="text-xs text-slate-400 mb-6">Telah terpilih dari roda keberuntungan.</p>
+
+            <div class="flex flex-col gap-2">
+                <button onclick="removeWinnerAndClose()" id="modalRemoveBtn" class="w-full py-2.5 bg-rose-900/40 hover:bg-rose-900/70 text-rose-200 border border-rose-700/50 font-semibold rounded-xl text-xs transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-trash-can"></i> Hapus Nama Ini & Lanjut
+                </button>
+                <button onclick="closeWinnerModal()" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl text-xs border border-slate-700 transition">
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script Logic -->
+    <script>
+        // Preset Soft & Muted Earthy Palette Colors for Wheel Slices
+        const PALETTE = [
+            '#334155', // Slate Dark
+            '#475569', // Slate Medium
+            '#3b82f6', // Soft Blue
+            '#0f766e', // Teal Muted
+            '#047857', // Emerald Muted
+            '#d97706', // Warm Amber
+            '#b91c1c', // Crimson Soft
+            '#4338ca', // Indigo Muted
+            '#6b7280', // Cool Gray
+            '#0284c7'  // Sky Muted
+        ];
+
+        // Core State Variables
+        let items = [
+            "Andi Pratama",
+            "Budi Santoso",
+            "Citra Dewi",
+            "Dewi Lestari",
+            "Eko Prasetyo",
+            "Fitriani",
+            "Gita Gutawa",
+            "Hendra Setiawan"
+        ];
+        
+        let isSpinning = false;
+        let currentRotation = 0; // Sudut rotasi roda (radian)
+        let soundEnabled = true;
+        let lastWinner = "";
+        let spinCount = 0; // Total counter berapa kali diputar
+
+        // Web Audio Context for Sound Effects
+        let audioCtx = null;
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playTickSound() {
+            if (!soundEnabled) return;
+            try {
+                initAudio();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(120, audioCtx.currentTime + 0.04);
+                
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.04);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.04);
+            } catch (e) {}
+        }
+
+        function playWinSound() {
+            if (!soundEnabled) return;
+            try {
+                initAudio();
+                const notes = [261.63, 329.63, 392.00, 523.25];
+                notes.forEach((freq, idx) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0.2, audioCtx.currentTime + idx * 0.1);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + idx * 0.1 + 0.3);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(audioCtx.currentTime + idx * 0.1);
+                    osc.stop(audioCtx.currentTime + idx * 0.1 + 0.3);
+                });
+            } catch(e) {}
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            document.getElementById('soundIcon').className = soundEnabled ? "fa-solid fa-volume-high text-indigo-400" : "fa-solid fa-volume-xmark text-slate-500";
+            document.getElementById('soundText').innerText = soundEnabled ? "Suara: On" : "Suara: Off";
+        }
+
+        function toggleSecretPanel() {
+            const panel = document.getElementById('secretControlPanel');
+            const isHidden = panel.classList.contains('hidden');
+            if (isHidden) {
+                panel.classList.remove('hidden');
+            } else {
+                panel.classList.add('hidden');
+            }
+        }
+
+        // Canvas Setup & Wheel Drawing
+        const canvas = document.getElementById('wheelCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function drawWheel() {
+            const numItems = items.length;
+            const width = canvas.width;
+            const height = canvas.height;
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const radius = width / 2 - 15;
+
+            ctx.clearRect(0, 0, width, height);
+
+            if (numItems === 0) {
+                ctx.save();
+                ctx.fillStyle = '#1e293b';
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = 'bold 20px "Plus Jakarta Sans"';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('Tambahkan Item Terlebih Dahulu', centerX, centerY);
+                ctx.restore();
+                return;
+            }
+
+            const arc = (2 * Math.PI) / numItems;
+
+            for (let i = 0; i < numItems; i++) {
+                const angle = currentRotation + i * arc;
+                
+                // Segment Slice
+                ctx.beginPath();
+                ctx.fillStyle = PALETTE[i % PALETTE.length];
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, radius, angle, angle + arc);
+                ctx.lineTo(centerX, centerY);
+                ctx.fill();
+
+                // Segment Outer Border
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#0f172a';
+                ctx.stroke();
+
+                // Text Label
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate(angle + arc / 2);
+                ctx.textAlign = 'right';
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 16px "Plus Jakarta Sans"';
+                ctx.shadowColor = 'rgba(0,0,0,0.5)';
+                ctx.shadowBlur = 4;
+                
+                // Truncate long text
+                let text = items[i];
+                if (text.length > 18) {
+                    text = text.substring(0, 16) + '..';
+                }
+                
+                ctx.fillText(text, radius - 25, 6);
+                ctx.restore();
+            }
+
+            // Outer Ring
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+            ctx.lineWidth = 8;
+            ctx.strokeStyle = '#334155';
+            ctx.stroke();
+        }
+
+        // Render Items List Sidebar
+        function renderItemsList() {
+            const container = document.getElementById('itemsContainer');
+            const countBadge = document.getElementById('itemCountBadge');
+            const nextSelect = document.getElementById('nextWinnerSelect');
+            
+            countBadge.innerText = `${items.length} Item`;
+            container.innerHTML = '';
+            nextSelect.innerHTML = '';
+
+            items.forEach((item, index) => {
+                // List UI
+                const itemEl = document.createElement('div');
+                itemEl.className = 'flex items-center justify-between bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 hover:border-slate-700 transition group';
+                itemEl.innerHTML = `
+                    <div class="flex items-center gap-2.5 overflow-hidden">
+                        <span class="w-3 h-3 rounded-full flex-shrink-0" style="background-color: ${PALETTE[index % PALETTE.length]}"></span>
+                        <span class="text-xs font-semibold text-slate-200 truncate">${escapeHtml(item)}</span>
+                    </div>
+                    <button onclick="removeItem(${index})" class="text-slate-500 hover:text-rose-400 p-1 transition opacity-80 group-hover:opacity-100">
+                        <i class="fa-solid fa-xmark text-sm"></i>
+                    </button>
+                `;
+                container.appendChild(itemEl);
+
+                // Option for Secret Selector
+                const opt = document.createElement('option');
+                opt.value = item;
+                opt.innerText = item;
+                nextSelect.appendChild(opt);
+            });
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/[&<>"']/g, function(m) {
+                return {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#039;'
+                }[m];
+            });
+        }
+
+        function addItemsFromTextarea() {
+            const input = document.getElementById('bulkInput');
+            const lines = input.value.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            
+            if (lines.length > 0) {
+                items = items.concat(lines);
+                input.value = '';
+                renderItemsList();
+                drawWheel();
+                updateRiggedStatus();
+            }
+        }
+
+        function removeItem(index) {
+            items.splice(index, 1);
+            renderItemsList();
+            drawWheel();
+            updateRiggedStatus();
+        }
+
+        function clearAllItems() {
+            items = [];
+            renderItemsList();
+            drawWheel();
+            updateRiggedStatus();
+        }
+
+        function shuffleItems() {
+            if (isSpinning || items.length === 0) return;
+            for (let i = items.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [items[i], items[j]] = [items[j], items[i]];
+            }
+            renderItemsList();
+            drawWheel();
+        }
+
+        function updateDurationLabel() {
+            const val = document.getElementById('spinDuration').value;
+            document.getElementById('durationVal').innerText = `${val} Detik`;
+        }
+
+        // RIGGED / PRESET LOGIC IMPLEMENTATION
+        function handleRiggedModeChange() {
+            const mode = document.getElementById('riggedModeSelect').value;
+            const nextGrp = document.getElementById('nextWinnerGroup');
+            const seqGrp = document.getElementById('sequenceWinnerGroup');
+            const badge = document.getElementById('secretBadge');
+
+            if (mode === 'next') {
+                nextGrp.classList.remove('hidden');
+                seqGrp.classList.add('hidden');
+                badge.className = "w-2 h-2 rounded-full bg-amber-400 animate-pulse";
+            } else if (mode === 'sequence') {
+                seqGrp.classList.remove('hidden');
+                nextGrp.classList.add('hidden');
+                badge.className = "w-2 h-2 rounded-full bg-amber-400 animate-pulse";
+            } else {
+                nextGrp.classList.add('hidden');
+                seqGrp.classList.add('hidden');
+                badge.className = "w-2 h-2 rounded-full bg-slate-500";
+            }
+            updateRiggedStatus();
+        }
+
+        function updateRiggedStatus() {
+            const mode = document.getElementById('riggedModeSelect').value;
+            const statusEl = document.getElementById('riggedStatusText');
+
+            if (mode === 'none') {
+                statusEl.innerHTML = `Status: <span class="text-emerald-400 font-bold">FAIR / RANDOM</span>`;
+            } else if (mode === 'next') {
+                const target = document.getElementById('nextWinnerSelect').value || 'Belum dipilih';
+                statusEl.innerHTML = `Status: <span class="text-amber-400 font-bold">SETTING NEXT (${escapeHtml(target)})</span>`;
+            } else if (mode === 'sequence') {
+                statusEl.innerHTML = `Status: <span class="text-amber-400 font-bold">URUTAN BERUNTUN AKTIF</span>`;
+            }
+        }
+
+        // Determine target index before spin starts
+        function getTargetWinnerIndex() {
+            if (items.length === 0) return -1;
+            
+            const mode = document.getElementById('riggedModeSelect').value;
+
+            // Mode 1: Next Specific Winner
+            if (mode === 'next') {
+                const targetName = document.getElementById('nextWinnerSelect').value;
+                const idx = items.indexOf(targetName);
+                if (idx !== -1) {
+                    // Reset mode back to fair after consuming this preset
+                    document.getElementById('riggedModeSelect').value = 'none';
+                    handleRiggedModeChange();
+                    return idx;
+                }
+            }
+
+            // Mode 2: Sequence List
+            if (mode === 'sequence') {
+                const rawSeq = document.getElementById('sequenceWinnersInput').value;
+                const seqList = rawSeq.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+                
+                if (seqList.length > spinCount) {
+                    const targetName = seqList[spinCount];
+                    const idx = items.indexOf(targetName);
+                    if (idx !== -1) return idx;
+                }
+            }
+
+            // Mode Default / Fallback: Murni Acak
+            return Math.floor(Math.random() * items.length);
+        }
+
+        // Main Spin Wheel Physics & Math Calculation
+        function spinWheel() {
+            if (isSpinning || items.length === 0) return;
+
+            const targetIndex = getTargetWinnerIndex();
+            if (targetIndex === -1) return;
+
+            isSpinning = true;
+            document.getElementById('spinBtn').disabled = true;
+            document.getElementById('spinHubBtn').disabled = true;
+            document.getElementById('spinBtn').classList.add('opacity-50');
+
+            const durationSec = parseInt(document.getElementById('spinDuration').value, 10);
+            const totalDuration = durationSec * 1000; // ms
+
+            // Slice Angles
+            const numItems = items.length;
+            const arc = (2 * Math.PI) / numItems;
+
+            // Panah penunjuk berada di Puncak Atas = 270 Derajat / (3 * PI / 2)
+            const pointerAngle = (3 * Math.PI) / 2;
+
+            // Hitung target rotasi akhir agar sektor targetIndex mendarat persis di bawah panah
+            // Center dari sektor targetIndex: angleCenter = targetIndex * arc + arc/2
+            // Saat diputar sejauh currentRotation + delta, sudut efektif di bawah panah = (pointerAngle - (currentRotation + delta)) % 2PI
+            const targetSegmentCenter = targetIndex * arc + (arc / 2);
+            
+            // Cari sisa offset sudut untuk mendarat tepat di tengah segmen target
+            let targetNormalizedAngle = (pointerAngle - targetSegmentCenter) % (2 * Math.PI);
+            if (targetNormalizedAngle < 0) targetNormalizedAngle += 2 * Math.PI;
+
+            // Berikan variasi random kecil (+- 30% dari lebar segmen) agar panah tidak selalu berhenti persis di milimeter tengah yang sama (terlihat lebih alami)
+            const randomOffset = (Math.random() - 0.5) * (arc * 0.6);
+            targetNormalizedAngle += randomOffset;
+
+            // Pastikan roda berputar minimal 5 - 8 putaran penuh sebelum berhenti
+            const extraRounds = Math.floor(Math.random() * 3) + 5;
+            
+            // Hitung Sudut Rotasi Akhir (Final Rotation Angle)
+            const currentNorm = currentRotation % (2 * Math.PI);
+            let angleToRotate = targetNormalizedAngle - currentNorm;
+            if (angleToRotate <= 0) {
+                angleToRotate += 2 * Math.PI;
+            }
+            
+            const startRotation = currentRotation;
+            const finalRotation = startRotation + angleToRotate + (extraRounds * 2 * Math.PI);
+
+            const startTime = performance.now();
+            let lastAudioIndex = -1;
+
+            function animateSpin(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / totalDuration, 1);
+
+                // Cubic Ease-Out Deceleration Curve (Makin lambat di akhir)
+                const easeOut = 1 - Math.pow(1 - progress, 3);
+                currentRotation = startRotation + (finalRotation - startRotation) * easeOut;
+
+                drawWheel();
+
+                // Hitung indeks segmen di bawah panah untuk efek suara tick
+                const currentPointerAngle = (pointerAngle - (currentRotation % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+                const currentSegmentIndex = Math.floor(currentPointerAngle / arc) % numItems;
+
+                if (currentSegmentIndex !== lastAudioIndex) {
+                    playTickSound();
+                    lastAudioIndex = currentSegmentIndex;
+                }
+
+                if (progress < 1) {
+                    requestAnimationFrame(animateSpin);
+                } else {
+                    // Spin Completed
+                    isSpinning = false;
+                    spinCount++;
+                    document.getElementById('spinBtn').disabled = false;
+                    document.getElementById('spinHubBtn').disabled = false;
+                    document.getElementById('spinBtn').classList.remove('opacity-50');
+                    
+                    // Announce Winner
+                    const winner = items[targetIndex];
+                    showWinnerModal(winner);
+                }
+            }
+
+            requestAnimationFrame(animateSpin);
+        }
+
+        // Winner Modal & Celebration
+        function showWinnerModal(winner) {
+            lastWinner = winner;
+            document.getElementById('winnerName').innerText = winner;
+            
+            const modal = document.getElementById('winnerModal');
+            const content = document.getElementById('modalContent');
+            
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            content.classList.remove('scale-95');
+            content.classList.add('scale-100');
+
+            playWinSound();
+
+            if (document.getElementById('enableConfetti').checked) {
+                confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+            }
+
+            // Auto Remove Winner logic if toggled
+            if (document.getElementById('autoRemoveWinner').checked) {
+                setTimeout(() => {
+                    removeWinnerAndClose();
+                }, 2500);
+            }
+        }
+
+        function closeWinnerModal() {
+            const modal = document.getElementById('winnerModal');
+            const content = document.getElementById('modalContent');
+            
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            content.classList.remove('scale-100');
+            content.classList.add('scale-95');
+        }
+
+        function removeWinnerAndClose() {
+            const winnerIdx = items.indexOf(lastWinner);
+            if (winnerIdx !== -1) {
+                removeItem(winnerIdx);
+            }
+            closeWinnerModal();
+        }
+
+        function resetWheelSettings() {
+            items = [
+                "Andi Pratama",
+                "Budi Santoso",
+                "Citra Dewi",
+                "Dewi Lestari",
+                "Eko Prasetyo",
+                "Fitriani",
+                "Gita Gutawa",
+                "Hendra Setiawan"
+            ];
+            spinCount = 0;
+            currentRotation = 0;
+            document.getElementById('riggedModeSelect').value = 'none';
+            handleRiggedModeChange();
+            renderItemsList();
+            drawWheel();
+        }
+
+        // Window Initializer
+        window.onload = function() {
+            renderItemsList();
+            drawWheel();
+            
+            // Redraw on window resize
+            window.addEventListener('resize', () => {
+                drawWheel();
+            });
+        };
+    </script>
+</body>
+</html>
