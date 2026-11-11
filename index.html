@@ -53,10 +53,9 @@
             </div>
 
             <div class="flex items-center gap-2">
-                <!-- Secret Control Panel Toggle Button -->
                 <button id="btnSecretToggle" onclick="toggleSecretPanel()" class="p-2.5 bg-slate-800 hover:bg-slate-700 text-amber-300 rounded-xl transition flex items-center gap-2 text-xs font-semibold border border-amber-500/20">
-                    <i class="fa-solid fa-user-ninja"></i>
-                    <span class="hidden sm:inline">Panel Setting</span>
+                    <i class="fa-solid fa-list-ol"></i>
+                    <span class="hidden sm:inline">Atur Urutan</span>
                     <span id="secretBadge" class="w-2 h-2 rounded-full bg-slate-500"></span>
                 </button>
 
@@ -111,11 +110,10 @@
         <!-- Right Section: Settings & Items Management -->
         <section class="lg:col-span-5 flex flex-col gap-6">
             
-            <!-- SECRET CONTROL PANEL (Hidden by Default) -->
             <div id="secretControlPanel" class="bg-slate-900 p-6 rounded-2xl border border-amber-500/30 shadow-md hidden">
                 <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
                     <h2 class="font-bold text-amber-400 flex items-center gap-2 text-sm">
-                        <i class="fa-solid fa-user-ninja"></i> Pengaturan Hasil Rahasia
+                        <i class="fa-solid fa-list-ol"></i> Pengaturan Hasil & Urutan
                     </h2>
                     <span class="text-[10px] bg-amber-500/10 text-amber-300 px-2 py-0.5 rounded border border-amber-500/20 font-mono">SETTING</span>
                 </div>
@@ -145,6 +143,7 @@
                         <label class="block text-xs text-amber-400 font-medium">Urutan Pemenang (Putaran 1, Putaran 2, dst):</label>
                         <textarea id="sequenceWinnersInput" rows="3" placeholder="Masukkan urutan pemenang (1 nama per baris)&#10;Contoh:&#10;Andi Pratama&#10;Budi Santoso" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500"></textarea>
                         <p class="text-[11px] text-slate-400">Putaran 1 memenangkan baris 1, Putaran 2 memenangkan baris 2, dst.</p>
+                        <p id="sequenceProgressText" class="text-[11px] text-amber-300 font-medium"></p>
                     </div>
 
                     <div id="riggedStatusText" class="text-xs text-slate-400 bg-slate-950 p-2.5 rounded-xl border border-slate-800 font-mono">
@@ -224,6 +223,20 @@
                 </div>
             </div>
 
+            <div class="bg-slate-900/80 p-6 rounded-2xl border border-slate-800 shadow-md">
+                <div class="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
+                    <h2 class="font-bold text-slate-100 flex items-center gap-2 text-sm">
+                        <i class="fa-solid fa-clock-rotate-left text-slate-400"></i> Riwayat Pemenang
+                    </h2>
+                    <button onclick="clearHistory()" class="text-xs text-slate-400 hover:text-rose-400 transition" title="Hapus riwayat">
+                        <i class="fa-solid fa-trash-can"></i> Hapus
+                    </button>
+                </div>
+                <div id="historyContainer" class="max-h-52 overflow-y-auto space-y-2">
+                    <p class="text-xs text-slate-500">Belum ada pemenang.</p>
+                </div>
+            </div>
+
         </section>
 
     </main>
@@ -286,6 +299,11 @@
         let soundEnabled = true;
         let lastWinner = "";
         let spinCount = 0; // Total counter berapa kali diputar
+        let sequenceIndex = 0;
+        let winnerHistory = [];
+        let pendingSequenceWinner = false;
+        const STORAGE_KEY = 'spinWheelState';
+        const PANEL_PASSWORD = '220308';
 
         // Web Audio Context for Sound Effects
         let audioCtx = null;
@@ -343,12 +361,80 @@
 
         function toggleSecretPanel() {
             const panel = document.getElementById('secretControlPanel');
-            const isHidden = panel.classList.contains('hidden');
-            if (isHidden) {
-                panel.classList.remove('hidden');
-            } else {
+            if (!panel.classList.contains('hidden')) {
                 panel.classList.add('hidden');
+                return;
             }
+
+            const password = window.prompt('Masukkan password untuk membuka panel:');
+            if (password === PANEL_PASSWORD) {
+                panel.classList.remove('hidden');
+            } else if (password !== null) {
+                window.alert('Password salah. Panel tidak dibuka.');
+            }
+        }
+
+        function saveAppState() {
+            const state = {
+                items,
+                spinCount,
+                sequenceIndex,
+                winnerHistory: winnerHistory.slice(0, 100),
+                riggedMode: document.getElementById('riggedModeSelect').value,
+                nextWinner: document.getElementById('nextWinnerSelect').value,
+                sequence: document.getElementById('sequenceWinnersInput').value,
+                duration: document.getElementById('spinDuration').value,
+                autoRemove: document.getElementById('autoRemoveWinner').checked,
+                confetti: document.getElementById('enableConfetti').checked,
+                soundEnabled
+            };
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            } catch (error) {}
+        }
+
+        function restoreAppState() {
+            try {
+                const state = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+                if (!state || typeof state !== 'object') return;
+                if (Array.isArray(state.items)) items = state.items.filter(item => typeof item === 'string');
+                if (Number.isInteger(state.spinCount) && state.spinCount >= 0) spinCount = state.spinCount;
+                if (Number.isInteger(state.sequenceIndex) && state.sequenceIndex >= 0) sequenceIndex = state.sequenceIndex;
+                if (Array.isArray(state.winnerHistory)) winnerHistory = state.winnerHistory.filter(entry => entry && typeof entry.name === 'string').slice(0, 100);
+                if (['none', 'next', 'sequence'].includes(state.riggedMode)) document.getElementById('riggedModeSelect').value = state.riggedMode;
+                if (typeof state.sequence === 'string') document.getElementById('sequenceWinnersInput').value = state.sequence;
+                if (typeof state.duration === 'string') document.getElementById('spinDuration').value = state.duration;
+                if (typeof state.autoRemove === 'boolean') document.getElementById('autoRemoveWinner').checked = state.autoRemove;
+                if (typeof state.confetti === 'boolean') document.getElementById('enableConfetti').checked = state.confetti;
+                if (typeof state.soundEnabled === 'boolean') soundEnabled = state.soundEnabled;
+            } catch (error) {}
+        }
+
+        function renderHistory() {
+            const container = document.getElementById('historyContainer');
+            container.innerHTML = '';
+            if (winnerHistory.length === 0) {
+                container.innerHTML = '<p class="text-xs text-slate-500">Belum ada pemenang.</p>';
+                return;
+            }
+            winnerHistory.forEach(entry => {
+                const row = document.createElement('div');
+                row.className = 'flex items-center justify-between gap-3 bg-slate-950 p-2.5 rounded-lg border border-slate-800';
+                const name = document.createElement('span');
+                name.className = 'text-xs font-semibold text-slate-200 truncate';
+                name.textContent = entry.name;
+                const date = document.createElement('time');
+                date.className = 'text-[10px] text-slate-500 whitespace-nowrap';
+                date.textContent = entry.date || '';
+                row.append(name, date);
+                container.appendChild(row);
+            });
+        }
+
+        function clearHistory() {
+            winnerHistory = [];
+            renderHistory();
+            saveAppState();
         }
 
         // Canvas Setup & Wheel Drawing
@@ -481,6 +567,7 @@
                 renderItemsList();
                 drawWheel();
                 updateRiggedStatus();
+                saveAppState();
             }
         }
 
@@ -489,6 +576,7 @@
             renderItemsList();
             drawWheel();
             updateRiggedStatus();
+            saveAppState();
         }
 
         function clearAllItems() {
@@ -496,6 +584,7 @@
             renderItemsList();
             drawWheel();
             updateRiggedStatus();
+            saveAppState();
         }
 
         function shuffleItems() {
@@ -506,11 +595,13 @@
             }
             renderItemsList();
             drawWheel();
+            saveAppState();
         }
 
         function updateDurationLabel() {
             const val = document.getElementById('spinDuration').value;
             document.getElementById('durationVal').innerText = `${val} Detik`;
+            saveAppState();
         }
 
         // RIGGED / PRESET LOGIC IMPLEMENTATION
@@ -546,13 +637,21 @@
                 const target = document.getElementById('nextWinnerSelect').value || 'Belum dipilih';
                 statusEl.innerHTML = `Status: <span class="text-amber-400 font-bold">SETTING NEXT (${escapeHtml(target)})</span>`;
             } else if (mode === 'sequence') {
-                statusEl.innerHTML = `Status: <span class="text-amber-400 font-bold">URUTAN BERUNTUN AKTIF</span>`;
+                const seqList = document.getElementById('sequenceWinnersInput').value.split('\n').map(name => name.trim()).filter(Boolean);
+                const nextName = seqList[sequenceIndex];
+                const missingName = nextName && !items.includes(nextName);
+                statusEl.innerHTML = missingName
+                    ? `Status: <span class="text-rose-400 font-bold">NAMA TIDAK ADA: ${escapeHtml(nextName)}</span>`
+                    : `Status: <span class="text-amber-400 font-bold">URUTAN BERUNTUN AKTIF</span>`;
+                document.getElementById('sequenceProgressText').textContent = `Progres: ${Math.min(sequenceIndex, seqList.length)}/${seqList.length}${nextName ? ` | Berikutnya: ${nextName}` : ' | Urutan selesai'}`;
             }
+            saveAppState();
         }
 
         // Determine target index before spin starts
         function getTargetWinnerIndex() {
             if (items.length === 0) return -1;
+            pendingSequenceWinner = false;
             
             const mode = document.getElementById('riggedModeSelect').value;
 
@@ -572,12 +671,15 @@
             if (mode === 'sequence') {
                 const rawSeq = document.getElementById('sequenceWinnersInput').value;
                 const seqList = rawSeq.split('\n').map(s => s.trim()).filter(s => s.length > 0);
-                
-                if (seqList.length > spinCount) {
-                    const targetName = seqList[spinCount];
-                    const idx = items.indexOf(targetName);
-                    if (idx !== -1) return idx;
+                const targetName = seqList[sequenceIndex];
+                if (!targetName) return -1;
+                const idx = items.indexOf(targetName);
+                if (idx === -1) {
+                    updateRiggedStatus();
+                    return -1;
                 }
+                pendingSequenceWinner = true;
+                return idx;
             }
 
             // Mode Default / Fallback: Murni Acak
@@ -660,12 +762,14 @@
                     // Spin Completed
                     isSpinning = false;
                     spinCount++;
+                    if (pendingSequenceWinner) sequenceIndex++;
                     document.getElementById('spinBtn').disabled = false;
                     document.getElementById('spinHubBtn').disabled = false;
                     document.getElementById('spinBtn').classList.remove('opacity-50');
                     
                     // Announce Winner
                     const winner = items[targetIndex];
+                    updateRiggedStatus();
                     showWinnerModal(winner);
                 }
             }
@@ -676,6 +780,10 @@
         // Winner Modal & Celebration
         function showWinnerModal(winner) {
             lastWinner = winner;
+            winnerHistory.unshift({ name: winner, date: new Date().toLocaleString('id-ID') });
+            winnerHistory = winnerHistory.slice(0, 100);
+            renderHistory();
+            saveAppState();
             document.getElementById('winnerName').innerText = winner;
             
             const modal = document.getElementById('winnerModal');
@@ -732,16 +840,36 @@
                 "Hendra Setiawan"
             ];
             spinCount = 0;
+            sequenceIndex = 0;
+            winnerHistory = [];
             currentRotation = 0;
             document.getElementById('riggedModeSelect').value = 'none';
+            document.getElementById('sequenceWinnersInput').value = '';
+            document.getElementById('autoRemoveWinner').checked = false;
+            document.getElementById('enableConfetti').checked = true;
+            document.getElementById('spinDuration').value = '5';
+            updateDurationLabel();
             handleRiggedModeChange();
             renderItemsList();
+            renderHistory();
             drawWheel();
+            saveAppState();
         }
 
         // Window Initializer
         window.onload = function() {
+            restoreAppState();
             renderItemsList();
+            renderHistory();
+            document.getElementById('spinDuration').addEventListener('change', saveAppState);
+            document.getElementById('autoRemoveWinner').addEventListener('change', saveAppState);
+            document.getElementById('enableConfetti').addEventListener('change', saveAppState);
+            document.getElementById('nextWinnerSelect').addEventListener('change', updateRiggedStatus);
+            document.getElementById('sequenceWinnersInput').addEventListener('input', updateRiggedStatus);
+            document.getElementById('soundIcon').className = soundEnabled ? 'fa-solid fa-volume-high text-slate-300' : 'fa-solid fa-volume-xmark text-slate-500';
+            document.getElementById('soundText').innerText = soundEnabled ? 'Suara: On' : 'Suara: Off';
+            updateDurationLabel();
+            handleRiggedModeChange();
             drawWheel();
             
             // Redraw on window resize
